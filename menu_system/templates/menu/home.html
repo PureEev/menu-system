@@ -1,0 +1,110 @@
+{% load static menu_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .menus {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 40px;
+        }
+
+        .menu-container {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-title {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #3498db;
+        }
+
+        .menu-list {
+            list-style: none;
+            padding-left: 0;
+            margin: 0;
+        }
+
+        .menu-list ul {
+            padding-left: 20px;
+            margin-top: 5px;
+        }
+
+        .menu-list li {
+            margin: 5px 0;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .menu-list li:hover {
+            background: #e0e0e0;
+        }
+
+        .menu-list li.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .menu-list li.active a {
+            color: white;
+        }
+
+        .menu-list a {
+            text-decoration: none;
+            color: #34495e;
+        }
+
+        .page-content {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .page-content h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="menus">
+        {% draw_menu 'Main_menu_1' %}
+        {% draw_menu 'Main_menu_2' %}
+    </div>
+
+    {% if item %}
+    <div class="page-menu">
+        {% draw_menu item.menu.name %}
+    </div>
+
+    <div class="page-content">
+        <h1>{{ item.name }}</h1>
+        {% if item.content %}
+            <div class="content">{{ item.content|safe }}</div>
+        {% else %}
+            <p>No content available for this item.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</body>
+</html>

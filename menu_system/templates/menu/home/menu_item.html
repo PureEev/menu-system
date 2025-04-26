@@ -1,5 +1,0 @@
-{{ item.name }}
-{% if item.id in expanded_items and item.children %}
-{% for child in item.children %} {% include "menu/menu_item.html" with item=child %}
-{% endfor %}
-{% endif %}
