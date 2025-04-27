@@ -54,16 +54,22 @@ def draw_menu(context, menu_name):
     def build(nodes):
         tree = []
         for node in nodes:
-            if show_children and (node in active_ancestors):
+            if show_children and node in active_ancestors:
                 node.children = build(by_parent.get(node.id, []))
             else:
                 node.children = []
-            path_parts = []
-            cur = node
-            while cur:
-                path_parts.insert(0, cur.title.replace(' ', '_'))
-                cur = cur.parent
-            node.url = '/' + menu_name_url + '/' + '/'.join(path_parts) + '/'
+
+            custom_url = getattr(node, 'url', None)
+            if custom_url and custom_url != '#':
+                node.url = custom_url
+            else:
+                path_parts = []
+                cur = node
+                while cur:
+                    path_parts.insert(0, cur.title.replace(' ', '_'))
+                    cur = cur.parent
+                node.url = f'/{menu_name_url}/' + '/'.join(path_parts) + '/'
+
             tree.append(node)
         return tree
 
