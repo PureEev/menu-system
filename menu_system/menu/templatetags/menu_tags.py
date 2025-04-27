@@ -1,98 +1,78 @@
 from django import template
-from django.urls import reverse, NoReverseMatch
-from django.utils.safestring import mark_safe
 from ..models import MenuItem
+from collections import defaultdict
 
 register = template.Library()
 
-@register.simple_tag(takes_context=True)
+@register.inclusion_tag('menu/menu.html', takes_context=True)
 def draw_menu(context, menu_name):
-    request = context.get('request')
-    current_path = request.path if request else ''
+    request = context['request']
+    current_path = request.path.strip('/').split('/')
+    menu_name_url = menu_name.replace(' ', '_')
 
-    # Единый запрос к БД с фильтрацией по имени меню
-    qs = MenuItem.objects.filter(menu__name=menu_name).select_related('parent').order_by('order')
-    items = list(qs)
+    items = (
+        MenuItem.objects
+        .filter(menu__name=menu_name)
+        .select_related('parent')
+        .order_by('order')
+    )
+    if not items.exists():
+        return {
+            'main_menu': {'title': menu_name, 'url': f'/{menu_name_url}/'},
+            'menu_items': [],
+            'active_item': None,
+            'show_children': False,
+            'request': request,
+        }
 
-    if not items:  # Если меню пустое, возвращаем пустую строку
-        return ''
+    by_parent = defaultdict(list)
+    for it in items:
+        by_parent[it.parent_id].append(it)
 
-    id_map = {}
-    for item in items:
-        # Резолвим URL с учётом menu_name в fallback
-        if item.is_named_url and item.url:
-            try:
-                item.resolved_url = reverse(item.url)
-            except NoReverseMatch:
-                item.resolved_url = '#'
-        elif item.url:
-            # Если URL явно указан, используем как есть
-            item.resolved_url = item.url
-            # menu/templatetags/menu_tags.py
+    active_item = None
+    parent_id = None
+    subpath = current_path[1:] if current_path and current_path[0] == menu_name_url else []
+    for part in subpath:
+        title = part.replace('_', ' ')
+        for it in by_parent[parent_id]:
+            if it.title == title:
+                active_item = it
+                parent_id = it.id
+                break
         else:
-            # Формируем URL с использованием namespace и корректных параметров
-            try:
-                item.resolved_url = reverse(
-                    'menu:menu_item_detail',  # Добавляем namespace
-                    kwargs={
-                        'menu_name': menu_name,
-                        'slug': item.slug
-                    }
-                )
-            except NoReverseMatch:
-                item.resolved_url = '#'
+            break
 
-        item.children_list = []
-        item.is_active = (item.resolved_url == current_path)
-        item.is_open = False
-        id_map[item.id] = item
-
-    # Построение дерева
-    roots = []
-    for item in items:
-        if item.parent_id:
-            parent = id_map.get(item.parent_id)
-            if parent:
-                parent.children_list.append(item)
-        else:
-            roots.append(item)
-
-    # Определение активных элементов и раскрытие родителей
-    active_item = next((item for item in items if item.is_active), None)
+    active_ancestors = []
     if active_item:
-        p = active_item.parent
-        while p:
-            p.is_open = True
-            p = p.parent
-        active_item.is_open = True
+        cur = active_item
+        while cur:
+            active_ancestors.insert(0, cur)
+            cur = cur.parent
 
-    # Рендер HTML
-    def render_list(nodes):
-        if not nodes:
-            return ''
-        html = ['<ul class="menu-list">']
+    show_children = active_item is not None
+
+    def build(nodes):
+        tree = []
         for node in nodes:
-            classes = []
-            if node.is_active:
-                classes.append('active')
-            if node.is_open or node == active_item:
-                classes.append('open')
-            class_attr = f' class="{" ".join(classes)}"' if classes else ''
-            html.append(f'<li{class_attr}>')
-            html.append(f'<a href="{node.resolved_url}">{node.name}</a>')
-            if node.children_list and (node.is_open or node == active_item):
-                html.append(render_list(node.children_list))
-            html.append('</li>')
-        html.append('</ul>')
-        return ''.join(html)
+            if show_children and (node in active_ancestors):
+                node.children = build(by_parent.get(node.id, []))
+            else:
+                node.children = []
+            path_parts = []
+            cur = node
+            while cur:
+                path_parts.insert(0, cur.title.replace(' ', '_'))
+                cur = cur.parent
+            node.url = '/' + menu_name_url + '/' + '/'.join(path_parts) + '/'
+            tree.append(node)
+        return tree
 
-    # Сборка контейнера
-    container = [
-        f'<div class="menu-container" id="menu-{menu_name}">',
-        f'<div class="menu-title">{menu_name}</div>',
-        render_list(roots),
-        '</div>'
-    ]
+    menu_tree = build(by_parent.get(None, []))
 
-    print(f"Menu: {menu_name}, Items: {[(item.name, item.resolved_url) for item in items]}")
-    return mark_safe(''.join(container))
+    return {
+        'main_menu': {'title': menu_name, 'url': f'/{menu_name_url}/'},
+        'menu_items': menu_tree,
+        'active_item': active_item,
+        'show_children': show_children,
+        'request': request,
+    }

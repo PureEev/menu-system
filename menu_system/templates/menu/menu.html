@@ -1,0 +1,6 @@
+<div class="menu-container">
+  <h3>{{ main_menu.title }}</h3>
+  <ul class="main-menu">
+    {% include 'menu/menu_level.html' with children=menu_items %}
+  </ul>
+</div>
