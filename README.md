@@ -10,11 +10,6 @@ A Django project providing a flexible, hierarchical menu system as a reusable ap
 - Django admin integration for creating Menus and MenuItems
 - Easily override templates and styles
 
-## Requirements
-
-- Python 3.8+
-- Django 5.2+
-
 ## Installation
 
 1. Clone the repository:
